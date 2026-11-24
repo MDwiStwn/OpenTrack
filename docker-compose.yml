@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: opentrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opentrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opentrack_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-opentrack}
+    ports:
+      - "5432:5432"
+    volumes:
+      - opentrack_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-opentrack} -d ${POSTGRES_DB:-opentrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opentrack-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - opentrack_uploads:/app/uploads
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-opentrack}:${POSTGRES_PASSWORD:-opentrack_secret}@db:5432/${POSTGRES_DB:-opentrack}?schema=public
+      # Generate a strong secret in .env with: openssl rand -hex 32
+      JWT_SECRET: ${JWT_SECRET:-opentrack-local-dev-secret-replace-in-env-32chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Clean start by default for GitHub users; set SEED_DATABASE=true only if you want sample data
+      SEED_DATABASE: ${SEED_DATABASE:-false}
+      UPLOAD_DIR: /app/uploads
+      NODE_ENV: production
+
+volumes:
+  opentrack_pgdata:
+  opentrack_uploads:
