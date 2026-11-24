@@ -19,8 +19,9 @@ Dirancang untuk tim engineering, product, dan QC yang membutuhkan pelacakan tike
 9. [Arsitektur Keamanan](#arsitektur-keamanan)
 10. [Referensi REST API v1 & Webhooks](#referensi-rest-api-v1--webhooks)
 11. [Deploy ke Production & Backup Data](#deploy-ke-production--backup-data)
-12. [Struktur Proyek](#struktur-proyek)
-13. [Kontribusi & Lisensi](#kontribusi--lisensi)
+12. [CI/CD Otomatis (GitHub Actions)](#cicd-otomatis-github-actions)
+13. [Struktur Proyek](#struktur-proyek)
+14. [Kontribusi & Lisensi](#kontribusi--lisensi)
 
 ---
 
@@ -266,6 +267,30 @@ Saat dijalankan dengan Docker Compose di VPS (Ubuntu/Debian, Coolify, atau Dokpl
    ```bash
    docker exec opentrack-db pg_dump -U opentrack opentrack > backup_$(date +%F).sql
    ```
+
+---
+
+## CI/CD Otomatis (GitHub Actions)
+
+Repository ini sudah dilengkapi pipeline CI/CD di `.github/workflows/ci-cd.yml` dan `docker-compose.prod.yml` dengan 3 tahap otomatis setiap ada push ke branch `main`:
+
+1. **`ci` (Lint, Typecheck & Build)**: Menjalankan `prisma validate`, `tsc --noEmit`, `npm run lint`, dan `npm run build` pada setiap Push maupun Pull Request.
+2. **`docker` (Build & Push ke GHCR)**: Membangun image production di server GitHub Actions (sehingga RAM VPS Anda tetap ringan) lalu menyimpannya ke GitHub Container Registry (`ghcr.io/<owner>/<repo>:latest`).
+3. **`deploy` (Auto-Deploy via SSH + Healthcheck)**: Login ke VPS/EC2 Anda via SSH, menarik image terbaru, me-restart container `opentrack-app`, dan memverifikasi endpoint `/api/health` mengembalikan `"ok"`.
+
+### Cara Mengaktifkan Auto-Deploy di GitHub
+Buka repository GitHub Anda -> **Settings -> Secrets and variables -> Actions -> New repository secret**, lalu tambahkan secret berikut:
+
+| Nama Secret | Wajib | Contoh Nilai | Keterangan |
+| :--- | :---: | :--- | :--- |
+| `SSH_HOST` | Ya | `103.xx.xx.xx` | Alamat IP publik VPS / Elastic IP EC2 Anda |
+| `SSH_USER` | Ya | `ubuntu` atau `root` | Username SSH server |
+| `SSH_PRIVATE_KEY` | Ya | `-----BEGIN OPENSSH PRIVATE KEY----- ...` | Isi private key SSH (`.pem` atau `~/.ssh/id_ed25519`) |
+| `SSH_PORT` | Opsional | `22` | Port SSH server (default `22`) |
+| `DEPLOY_PATH` | Opsional | `/home/ubuntu/OpenTrack` | Folder lokasi clone repo di server (default `~/OpenTrack`) |
+| `GHCR_TOKEN` | Opsional | `ghp_...` | Personal Access Token (`read:packages`) hanya jika repo bersifat **Private** |
+
+> Jika secret `SSH_HOST` belum diisi, tahap `ci` dan `docker` tetap berjalan hijau (tanpa error) sampai server VPS Anda siap.
 
 ---
 

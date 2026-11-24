@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: opentrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opentrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opentrack_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-opentrack}
+    volumes:
+      - opentrack_pgdata:/var/lib/postgresql/data
+    networks:
+      - opentrack_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-opentrack} -d ${POSTGRES_DB:-opentrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ${OPENTRACK_IMAGE:-ghcr.io/mdwistwn/opentrack:latest}
+    container_name: opentrack-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Ubah APP_PORT di .env (misal APP_PORT=3005) jika port 3000 di VPS sudah dipakai project lain
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - opentrack_uploads:/app/uploads
+    networks:
+      - opentrack_internal
+      - proxy_net
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-opentrack}:${POSTGRES_PASSWORD:-opentrack_secret}@db:5432/${POSTGRES_DB:-opentrack}?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SEED_DATABASE: ${SEED_DATABASE:-false}
+      UPLOAD_DIR: /app/uploads
+      NODE_ENV: production
+
+networks:
+  opentrack_internal:
+    driver: bridge
+  # Sambungkan ke Docker network milik container Nginx di VPS Anda.
+  # Set PROXY_NETWORK di .env VPS sesuai nama network Nginx Anda (cek dengan: docker network ls),
+  # atau buat satu kali dengan: docker network create proxy_net
+  proxy_net:
+    external: true
+    name: ${PROXY_NETWORK:-proxy_net}
+
+volumes:
+  opentrack_pgdata:
+  opentrack_uploads:
