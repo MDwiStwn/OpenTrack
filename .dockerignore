@@ -5,6 +5,6 @@ out
 .env
 .env.local
 .env.*.local
-uploads
+/uploads
 *.log
 .DS_Store

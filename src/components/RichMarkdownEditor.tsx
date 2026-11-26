@@ -36,7 +36,12 @@ interface RichMarkdownEditorProps {
   showTemplates?: boolean;
 }
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export async function uploadMediaFile(file: File): Promise<{ url: string; type: "image" | "video"; originalName: string }> {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("Ukuran file maksimal 10 MB");
+  }
   const fd = new FormData();
   fd.append("file", file);
   const res = await fetch("/api/internal/uploads", {
@@ -304,7 +309,7 @@ export function RichMarkdownEditor({
               type="button"
               disabled={uploading}
               aria-label="Unggah Gambar"
-              title="Upload Gambar (PNG, JPG, GIF, WEBP)"
+              title="Upload Gambar (PNG, JPG, GIF, WEBP, maks. 10 MB)"
               onClick={() => imageInputRef.current?.click()}
               className="inline-flex items-center gap-1 px-1.5 py-1 rounded text-[11px] text-zinc-300 hover:text-white hover:bg-surface-3 disabled:opacity-50 transition"
             >
@@ -319,7 +324,7 @@ export function RichMarkdownEditor({
               type="button"
               disabled={uploading}
               aria-label="Unggah Video"
-              title="Upload Video (MP4, WEBM, MOV)"
+              title="Upload Video (MP4, WEBM, MOV, maks. 10 MB)"
               onClick={() => videoInputRef.current?.click()}
               className="inline-flex items-center gap-1 px-1.5 py-1 rounded text-[11px] text-zinc-300 hover:text-white hover:bg-surface-3 disabled:opacity-50 transition"
             >

@@ -118,12 +118,15 @@ jobs:
           command_timeout: 10m
           script: |
             set -e
-            DEPLOY_DIR="${{ secrets.DEPLOY_PATH || '~/OpenTrack' }}"
+            DEPLOY_DIR="${{ secrets.DEPLOY_PATH || '~/opentrack' }}"
+            mkdir -p $DEPLOY_DIR
             cd $DEPLOY_DIR
 
-            echo "[Deploy] Pulling latest repository config..."
-            git fetch origin main
-            git reset --hard origin/main
+            if [ -d .git ]; then
+              echo "[Deploy] Pulling latest repository config..."
+              git fetch origin main
+              git reset --hard origin/main
+            fi
 
             if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
               echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
